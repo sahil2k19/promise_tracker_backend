@@ -12,7 +12,7 @@ let io;
 
 const initializeSocketIo = (socketIoInstance) => {
   io = socketIoInstance;
-};
+}; 
 const expo = new Expo();
 app.use(cors());
 const upload = multer({
