@@ -4,6 +4,7 @@ const UserSchema = require('../modules/UserSchema'); // Replace with your actual
 const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer');
 const dotenv = require('dotenv');
+const { sendMail } = require('../services/mail');
 dotenv.config();
 
 // Function to generate a random 6-digit OTP
@@ -39,6 +40,61 @@ const sendOTPEmail = async (email, otp) => {
   }
 };
 
+
+router.post('/reset-link', async (req, res) => {
+  const { email } = req.body;
+  try {
+    if (!email) {
+      return res.status(400).json({ message: 'Missing email parameter' });
+    }
+    const user = await UserSchema.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    const userId = user._id;
+    const subject = 'Password Reset Link';
+    const resetLink = `${process.env.CLIENT_URL}reset-password/${userId}`;
+    const replacements = { resetLink };
+    sendMail(
+      email,
+      subject,
+      replacements,
+      '../Email_Templates/resetLink.html',
+      (error, info) => {
+        if (error) {
+          console.log(error);
+          return res.json({ message: 'Error sending password reset link' });
+        } else {
+          console.log('Email sent: ' + info.response);
+          return res.json({ message: 'Password reset link sent successfully' });
+        }
+      });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+router.post('/set-password', async (req, res) => {
+  const { userId, password } = req.body;
+  try{
+    if (!userId || !password) {
+      return res.status(400).json({ error: 'Missing required parameters' });
+    }
+    const user = await UserSchema.findOne({ _id: userId });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    user.password = hashedPassword;
+    await user.save();
+    return res.json({ message: 'Password set successfully' });
+  }catch(err){
+    console.error(err);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+})
+
 router.post('/reset-password', async (req, res) => {
   const { email } = req.body;
 
@@ -69,5 +125,8 @@ router.post('/reset-password', async (req, res) => {
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
+
+
 
 module.exports = router;

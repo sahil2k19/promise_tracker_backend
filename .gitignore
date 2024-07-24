@@ -1,7 +1,8 @@
 # OSX
 #
 .DS_Store
-
+.env
+/.env
 # Xcode
 #
 build/
@@ -64,3 +65,4 @@ yarn-error.log
 
 # testing
 /coverage
+.env
