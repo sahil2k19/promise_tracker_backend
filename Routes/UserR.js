@@ -18,7 +18,7 @@ Router.post("/registration", async (req, res) => {
   try {
     const existinguser = await UserSchema.findOne({ email: email });
     if (existinguser) {
-      return res.status(400).json({ message: "already registerd" });
+      return res.status(400).json({ message: "Already registered" });
     }
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);

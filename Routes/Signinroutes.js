@@ -5,6 +5,7 @@ const Register = require('../modules/UserSchema');
 const Router = express.Router();
 const Signin = require('../modules/Signin');
 const bcrypt = require('bcrypt');
+const { sendMail } = require('../services/mail');
 const secretKey = 'mytestsecretkey'
 
 // Replace 'your-generated-secret-key' with the key generated using the provided script
@@ -32,9 +33,32 @@ Router.post('/Signin', async (req, res) => {
     const token = jwt.sign(
       { userId: user._id, email: user.email },
       secretKey    );
+      
       // console.log(token);
-
-      res.status(200).json({ userId: user._id, token, active: user.active});
+      const replacements = { name:user?.name, email:user?.email };
+      const emailTemplate = '../Email_Templates/loginSuccess.html';
+      const subject = 'SuccessFully Login';
+      sendMail(email, subject ,replacements, emailTemplate, (error, info) => {
+        if (error) {
+          console.log(error);
+        }else{
+          console.log('Email sent: ' + info.response);
+        }
+      })
+      res.status(200).json(
+        { 
+          name: user?.name,
+          email: user?.email,
+          userId: user?._id,
+          token, 
+          active: user?.active,
+          userRole: user?.userRole,
+          profilePic:user?.profilePic,
+          department: user?.department,
+          designation: user?.designation,
+          mobilenumber: user?.mobilenumber,
+        
+        });
       } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
