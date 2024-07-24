@@ -38,13 +38,13 @@ Router.post('/Signin', async (req, res) => {
       const replacements = { name:user?.name, email:user?.email };
       const emailTemplate = '../Email_Templates/loginSuccess.html';
       const subject = 'SuccessFully Login';
-      sendMail(email, subject ,replacements, emailTemplate, (error, info) => {
-        if (error) {
-          console.log(error);
-        }else{
-          console.log('Email sent: ' + info.response);
-        }
-      })
+      // sendMail(email, subject ,replacements, emailTemplate, (error, info) => {
+      //   if (error) {
+      //     console.log(error);
+      //   }else{
+      //     console.log('Email sent: ' + info.response);
+      //   }
+      // })
       res.status(200).json(
         { 
           name: user?.name,
