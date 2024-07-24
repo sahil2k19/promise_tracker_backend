@@ -40,7 +40,7 @@ Router.post("/registration", async (req, res) => {
 });
 Router.put("/users/:userId", async (req, res) => {
   const userId = req.params.userId;
-
+  console.log(req.body)
   try {
     // Find the user by ID
     const user = await UserSchema.findById(userId);
@@ -69,6 +69,9 @@ Router.put("/users/:userId", async (req, res) => {
     if (req.body.mobilenumber) {
       user.mobilenumber = req.body.mobilenumber;
     }
+    if(req.body.active){
+      user.active = req.body.active;
+    }
 
     await user.save();
 
@@ -95,6 +98,7 @@ Router.put("/usersedit/:userId", async (req, res) => {
     if (req.body.profilePic) user.profilePic = req.body.profilePic;
     if (req.body.department) user.department = req.body.department;
     if (req.body.designation) user.designation = req.body.designation;
+    if (req.body.active) user.active = req.body.active;
 
     await user.save();
 
@@ -102,6 +106,40 @@ Router.put("/usersedit/:userId", async (req, res) => {
   } catch (error) {
     console.error("Error:", error);
     res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+Router.put("/users/:userId/deactivate", async (req, res) => {
+  const {userId} = req.params;
+
+  try {
+    // Find user by ID and update the active field to false
+    const user = await UserSchema.findByIdAndUpdate(userId, { active: false }, { new: true });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json(user);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server Error" });
+  }
+});
+Router.put("/users/:userId/activate", async (req, res) => {
+  const {userId} = req.params;
+
+  try {
+    // Find user by ID and update the active field to false
+    const user = await UserSchema.findByIdAndUpdate(userId, { active: true }, { new: true });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json(user);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server Error" });
   }
 });
 
@@ -133,6 +171,7 @@ Router.get("/userData", async (req, res) => {
       name: item.name,
       email: item.email,
       userRole: item.userRole,
+      active: item.active,
     }));
     res.json(allUserData);
   } catch (error) {

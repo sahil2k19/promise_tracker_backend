@@ -19,7 +19,10 @@ Router.post('/Signin', async (req, res) => {
     const user = await Register.findOne({ email });
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: 'Account not found' });
+    }
+    if(!user.active){
+      return res.status(404).json({ message: 'Account deactivated , contact admin' });
     }
 
     // Check if the password is correct
