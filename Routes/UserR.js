@@ -1,22 +1,22 @@
-// const { default: mongoose } = require("mongoose");
-
-// const { json } = require("express");
-const UserSchema = require("../modules/UserSchema");
 const express = require("express");
-const mongoose = require("mongoose");
-const Router = express.Router();
 const bcrypt = require("bcrypt");
 const multer = require("multer");
-const fs = require("fs");
+const UserSchema = require("../modules/UserSchema");
+
+const Router = express.Router();
+let io;
+
+const initializeSocketIo = (socketIoInstance) => {
+  io = socketIoInstance;
+};
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 Router.post("/registration", async (req, res) => {
-  const { name, mobilenumber, email, password, userRole,active } = req.body;
-  console.log(req.body,'sassasa')
+  const { name, mobilenumber, email, password, userRole, active } = req.body;
   try {
-    const existinguser = await UserSchema.findOne({ email: email });
+    const existinguser = await UserSchema.findOne({ email });
     if (existinguser) {
       return res.status(400).json({ message: "Already registered" });
     }
@@ -32,110 +32,55 @@ Router.post("/registration", async (req, res) => {
       active,
     });
     await newRegister.save();
-    res.status(201).json({ message: "registration successfuly" });
+    res.status(201).json({ message: "Registration successful" });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "server error" });
+    res.status(500).json({ message: "Server error" });
   }
 });
+
 Router.put("/users/:userId", async (req, res) => {
   const userId = req.params.userId;
-  console.log(req.body)
   try {
-    // Find the user by ID
     const user = await UserSchema.findById(userId);
-
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
 
-    user.profilePic = req.body.profilePic;
-    // }
-
-    // Update department if provided
-    if (req.body.department) {
-      user.department = req.body.department;
-    }
-
-    // Update designation if provided
-    if (req.body.designation) {
-      user.designation = req.body.designation;
-    }
-
-    if (req.body.name) {
-      user.name = req.body.name;
-    }
-
-    if (req.body.mobilenumber) {
-      user.mobilenumber = req.body.mobilenumber;
-    }
-    if(req.body.active){
-      user.active = req.body.active;
-    }
+    Object.keys(req.body).forEach(key => {
+      user[key] = req.body[key];
+    });
 
     await user.save();
-
-    // Respond with the updated user
     res.json(user);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
-Router.put("/usersedit/:userId", async (req, res) => {
-  const userId = req.params.userId;
 
-  try {
-    // Find the user by ID
-    const user = await UserSchema.findById(userId);
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    // Update user properties
-    if (req.body.name) user.name = req.body.name;
-    if (req.body.mobilenumber) user.mobilenumber = req.body.mobilenumber;
-    if (req.body.profilePic) user.profilePic = req.body.profilePic;
-    if (req.body.department) user.department = req.body.department;
-    if (req.body.designation) user.designation = req.body.designation;
-    if (req.body.active) user.active = req.body.active;
-
-    await user.save();
-
-    res.json(user);
-  } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
 Router.put("/users/:userId/deactivate", async (req, res) => {
-  const {userId} = req.params;
-
+  const { userId } = req.params;
   try {
-    // Find user by ID and update the active field to false
     const user = await UserSchema.findByIdAndUpdate(userId, { active: false }, { new: true });
-
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-
+    io.emit("user-deactivated", user);
     res.json(user);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server Error" });
   }
 });
+
 Router.put("/users/:userId/activate", async (req, res) => {
-  const {userId} = req.params;
-
+  const { userId } = req.params;
   try {
-    // Find user by ID and update the active field to false
     const user = await UserSchema.findByIdAndUpdate(userId, { active: true }, { new: true });
-
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-
     res.json(user);
   } catch (err) {
     console.error(err);
@@ -144,15 +89,9 @@ Router.put("/users/:userId/activate", async (req, res) => {
 });
 
 Router.get("/user/:userId", async (req, res) => {
-  // console.log('test')
+  const userId = req.params.userId;
   try {
-    const userId = req.params.userId;
-    if (!userId) {
-      return res.status(400).json({ message: "Invalid userId" });
-    }
-
     const user = await UserSchema.findById(userId);
-
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -166,7 +105,7 @@ Router.get("/user/:userId", async (req, res) => {
 Router.get("/userData", async (req, res) => {
   try {
     const UserData = await UserSchema.find();
-    const allUserData = UserData.map((item) => ({
+    const allUserData = UserData.map(item => ({
       userId: item._id,
       name: item.name,
       email: item.email,
@@ -183,8 +122,7 @@ Router.get("/userData", async (req, res) => {
 Router.get("/registeredNames", async (req, res) => {
   try {
     const getData = await UserSchema.find();
-
-    const userNamesEmail = getData.map((item) => ({
+    const userNamesEmail = getData.map(item => ({
       userId: item._id,
       name: item.name,
       email: item.email,
@@ -192,7 +130,6 @@ Router.get("/registeredNames", async (req, res) => {
       userRole: item.userRole,
       profilePic: item.profilePic,
     }));
-
     res.json(userNamesEmail);
   } catch (error) {
     console.error("Error:", error);
@@ -201,26 +138,17 @@ Router.get("/registeredNames", async (req, res) => {
 });
 
 Router.put("/updateUserRole/:id", async (req, res) => {
-  const { id } = req.params; // Get the user ID from the URL parameters
-  const { userRole } = req.body; // Get the new userRole value from the request body
-
+  const { id } = req.params;
+  const { userRole } = req.body;
   if (!userRole) {
     return res.status(400).send("userRole is required.");
   }
-
   try {
-    const updatedUser = await UserSchema.findByIdAndUpdate(
-      id,
-      { userRole: userRole },
-      { new: true } // Return the updated document
-    );
-
+    const updatedUser = await UserSchema.findByIdAndUpdate(id, { userRole }, { new: true });
     if (!updatedUser) {
       return res.status(404).send("The user with the given ID was not found.");
     }
-
     res.send(updatedUser);
-    // console.log(updatedUser,"role")
   } catch (error) {
     res.status(500).send("Something went wrong");
   }
@@ -238,33 +166,4 @@ Router.delete("/users/:id", async (req, res) => {
   }
 });
 
-Router.patch('/:userId/deactivate', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    console.log('id',userId)
-    const user = await UserSchema.findByIdAndUpdate(userId, { active: false }, { new: true });
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    res.json({ message: 'User deactivated successfully', user });
-  } catch (error) {
-    console.error('Error deactivating user:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-});
-
-Router.patch('/:userId/activate', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const user = await UserSchema.findByIdAndUpdate(userId, { active: true }, { new: true });
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    res.json({ message: 'User activated successfully', user });
-  } catch (error) {
-    console.error('Error activating user:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-});
-
-module.exports = Router;
+module.exports = { app: Router, initializeSocketIo };

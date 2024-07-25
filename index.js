@@ -1,29 +1,28 @@
 const dotenv = require('dotenv');
 dotenv.config();
 const express = require('express');
-const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
+const cors = require('cors');
+const http = require('http');
+const socketIo = require('socket.io');
+const path = require('path');
 const UserR = require('./Routes/UserR');
 const Signinroutes = require('./Routes/Signinroutes');
 const AddTask = require('./Routes/AddTask');
 const TaskGroup = require('./Routes/Tasks');
 const TGroupR = require('./Routes/TGroupR');
 const ForgetPassword = require('./Routes/Forgotpassword');
-const cors = require('cors');
 const ResetPassword = require('./Routes/Resetpassword');
-const http = require('http');
-const socketIo = require('socket.io');
-const path = require('path');
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(bodyParser.urlencoded({ limit: '100mb', extended: true }));
+app.use(express.urlencoded({ limit: '100mb', extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // MongoDB connection
-mongoose.connect('mongodb+srv://Promise:Promise@cluster0.iufeasi.mongodb.net/?retryWrites=true&w=majority')
+mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Connected successfully'))
   .catch(err => console.error('Failed connection', err));
 
@@ -35,16 +34,20 @@ const io = socketIo(server, {
     methods: ['GET', 'POST']
   }
 });
-const { app: taskRoutes, initializeSocketIo } = require('./Routes/AddTask');
-initializeSocketIo(io);
-const { app: taskGroupRoutes, initializeSocketIo: initializeTaskGroupSocketIo } = require('./Routes/Tasks');
-initializeTaskGroupSocketIo(io);
 
 // Use routes and pass the Socket.io instance
-app.use('/api', UserR);
+const { initializeSocketIo: initializeAddTaskSocketIo } = require('./Routes/AddTask');
+const { initializeSocketIo: initializeTaskGroupSocketIo } = require('./Routes/Tasks');
+const { initializeSocketIo: initializeUserSocketIo } = require('./Routes/UserR');
+
+initializeAddTaskSocketIo(io);
+initializeTaskGroupSocketIo(io);
+initializeUserSocketIo(io);
+
+app.use('/api', UserR.app);
 app.use('/api', Signinroutes);
-app.use('/api', taskRoutes);  // Pass the Socket.io instance
-app.use('/api', taskGroupRoutes);
+app.use('/api', AddTask.app);
+app.use('/api', TaskGroup.app);
 app.use('/api', TGroupR);
 app.use('/api', ForgetPassword);
 app.use('/api', ResetPassword);
