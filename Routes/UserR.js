@@ -50,6 +50,7 @@ Router.put("/users/:userId", async (req, res) => {
     Object.keys(req.body).forEach(key => {
       user[key] = req.body[key];
     });
+    io.emit(`user_update${user._id}`, user);
 
     await user.save();
     res.json(user);
@@ -62,11 +63,11 @@ Router.put("/users/:userId", async (req, res) => {
 Router.put("/users/:userId/deactivate", async (req, res) => {
   const { userId } = req.params;
   try {
-    const user = await UserSchema.findByIdAndUpdate(userId, { active: false }, { new: true });
+    const user = await UserSchema.findByIdAndUpdate(userId, { active: false, userRole: 5 }, { new: true });
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    io.emit("user-deactivated", user);
+    io.emit(`user_update${user._id}`, user);
     res.json(user);
   } catch (err) {
     console.error(err);
@@ -77,10 +78,12 @@ Router.put("/users/:userId/deactivate", async (req, res) => {
 Router.put("/users/:userId/activate", async (req, res) => {
   const { userId } = req.params;
   try {
-    const user = await UserSchema.findByIdAndUpdate(userId, { active: true }, { new: true });
+    const user = await UserSchema.findByIdAndUpdate(userId, { active: true, userRole:5 }, { new: true });
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
+    io.emit(`user_update${user._id}`, user);
+
     res.json(user);
   } catch (err) {
     console.error(err);
@@ -148,6 +151,8 @@ Router.put("/updateUserRole/:id", async (req, res) => {
     if (!updatedUser) {
       return res.status(404).send("The user with the given ID was not found.");
     }
+    io.emit(`user_update${updatedUser._id}`, updatedUser);
+
     res.send(updatedUser);
   } catch (error) {
     res.status(500).send("Something went wrong");

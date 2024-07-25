@@ -98,7 +98,7 @@ app.post("/tasks", upload.single("pdfFile"), async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
-
+// socket done here
 app.post("/tasksadd", async (req, res) => {
   try {
     const { owner, taskGroup, taskName, description, audioFile, pdfFile, people, startDate, endDate, reminder, status, category, comment, remark } = req.body;
@@ -155,10 +155,11 @@ app.post("/tasksadd", async (req, res) => {
         created: new Date(),
         action: true,
       });
-
+      
       await newNotification.save();
     }
-
+    
+    io.emit("update_notification");
     // Responding with the newly created task
     res.status(201).json({ newTask: savedTask });
   } catch (error) {
@@ -166,7 +167,7 @@ app.post("/tasksadd", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
 }
 });
-
+// 
 app.post("/notifications/reply", async (req, res) => {
   try {
     const { userId, taskId, status, comment,  startDate, endDate, action } = req.body;
@@ -209,8 +210,10 @@ app.post("/notifications/reply", async (req, res) => {
       endDate: endDate,
       action: true,
     });
-
+    
+    
     await newNotification.save();
+    io.emit("update_notification", newNotification);
     res
       .status(201)
       .json({ message: "Reply sent successfully", comment: comment });
@@ -265,7 +268,7 @@ app.put("/notifications/mark-read", async (req, res, next) => {
     next(error);
   }
 });
-
+// 
 app.put("/tasks/update/:taskId", async (req, res) => {
   try {
     const { taskId } = req.params;
@@ -275,6 +278,7 @@ app.put("/tasks/update/:taskId", async (req, res) => {
     if (!task) {
       return res.status(404).send({ message: "Task not found" });
     }
+    io.emit("update_notification", task);
 
     res.status(200).send(task);
   } catch (error) {
@@ -304,14 +308,14 @@ app.put("/notifications/:taskid", async (req, res) => {
     if (!notification) {
       return res.status(404).json({ message: "Notification not found" });
     }
-
+    
     res.json(notification);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server Error" });
   }
 });
-
+// 
 app.put("/action/update/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
@@ -323,6 +327,7 @@ app.put("/action/update/:userId", async (req, res) => {
     if (updatedNotifications.nModified === 0) {
       return res.status(404).json({ error: 'No notifications found for this user' });
     }
+    io.emit("update_notification", updatedNotifications);
     res.json({ message: 'Notifications updated successfully' });
   } catch (error) {
  
@@ -343,7 +348,7 @@ app.put("/action/update/:userId", async (req, res) => {
 //     res.status(400).json({ message: err.message });
 //   }
 // });
-
+// 
 app.put('/updatetasks/:id', async (req, res) => {
   const { id } = req.params;
   const { comment, status, } = req.body;
@@ -362,6 +367,8 @@ app.put('/updatetasks/:id', async (req, res) => {
     if (!updatedTask) {
       return res.status(404).send('Task not found');
     }
+    io.emit("update_notification", updatedTask);
+
 
     res.send(updatedTask);
   } catch (error) {
