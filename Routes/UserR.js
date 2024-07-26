@@ -1,7 +1,8 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
-const multer = require("multer");
+// const multer = require("multer");
 const UserSchema = require("../modules/UserSchema");
+const upload = require("../services/s3");
 
 const Router = express.Router();
 let io;
@@ -10,8 +11,12 @@ const initializeSocketIo = (socketIoInstance) => {
   io = socketIoInstance;
 };
 
-const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+// const storage = multer.memoryStorage();
+// const upload = multer({ storage: storage });
+
+
+
+
 
 Router.post("/registration", async (req, res) => {
   const { name, mobilenumber, email, password, userRole, active } = req.body;
@@ -168,6 +173,61 @@ Router.delete("/users/:id", async (req, res) => {
     res.send({ message: "User deleted successfully" });
   } catch (error) {
     res.status(500).send({ message: "Server error", error: error.message });
+  }
+});
+
+
+// upload image in s3 bucket
+Router.put('/change-proifle-pic/:userId', upload.single('image'), async (req, res) => {
+  try {
+    const {userId} = req.params
+    const user = await UserSchema.findById(userId);
+    if(!user){
+      return res.status(404).send({ message: "User not found" });
+    }
+    user.profilePic = req.file.location;
+    await user.save();
+    res.send({result:req.file.location, message: "Profile pic updated successfully" });
+  } catch (error) {
+    res.status(500).send({ message: "Server error", error: error.message });
+  }
+})
+
+Router.post('/upload-image',upload.single('image'),async(req,res)=>{
+
+  try{
+    const imageUrl = req.file.location
+    res.json({result:imageUrl, message:"image uploaded successfully"})
+  }catch(err){
+    res.json(err)
+  }
+})
+//   for multiple images
+Router.post('/upload-multiple-images', upload.array('images'), async (req, res) => {
+  try {
+    const imageUrls = req.files.map(file => file.location);
+    res.json({ result: imageUrls, message: "Images uploaded successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+  // for voices
+Router.post('/upload-voice', upload.single('voice'), async (req, res) => {
+  try {
+    const voiceUrl = req.file.location;
+    res.json({ result: voiceUrl, message: "Voice file uploaded successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// for multiple voices
+Router.post('/upload-multiple-voices', upload.array('voices'), async (req, res) => {
+  try {
+    const voiceUrls = req.files.map(file => file.location);
+    res.json({ result: voiceUrls, message: "Voice files uploaded successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
