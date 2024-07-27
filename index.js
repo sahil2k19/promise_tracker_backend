@@ -13,6 +13,7 @@ const TaskGroup = require('./Routes/Tasks');
 const TGroupR = require('./Routes/TGroupR');
 const ForgetPassword = require('./Routes/Forgotpassword');
 const ResetPassword = require('./Routes/Resetpassword');
+const SubTask = require('./Routes/SubTask');
 const PORT = process.env.PORT || 5000;
 
 const app = express();
@@ -51,6 +52,7 @@ app.use('/api', TaskGroup.app);
 app.use('/api', TGroupR);
 app.use('/api', ForgetPassword);
 app.use('/api', ResetPassword);
+app.use('/api', SubTask);
 
 // Socket.io connection
 io.on('connection', (socket) => {
