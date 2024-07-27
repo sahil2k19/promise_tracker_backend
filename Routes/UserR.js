@@ -202,6 +202,15 @@ Router.post('/upload-image',upload.single('image'),async(req,res)=>{
     res.json(err)
   }
 })
+Router.post('/upload-file',upload.single('file'),async(req,res)=>{
+
+  try{
+    const fileUrl = req.file.location
+    res.json({result:fileUrl, message:"file uploaded successfully"})
+  }catch(err){
+    res.json(err)
+  }
+})
 //   for multiple images
 Router.post('/upload-multiple-images', upload.array('images'), async (req, res) => {
   try {
