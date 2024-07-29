@@ -3,6 +3,7 @@ const router = express.Router();
 const SubTaskSchema = require('../modules/SubTaskSchema'); // Replace with your actual User model
 const UserSchema = require('../modules/UserSchema'); // Replace with your actual User model
 const TaskSchema = require('../modules/TaskSchema');
+
 const checkUser = async (req, res, next) => {
     const { userId } = req.body;
    try {
@@ -46,7 +47,7 @@ const checkUser = async (req, res, next) => {
     }
   });
 
-  router.delete('/subtask/:id', checkUser, async (req, res) => {
+  router.delete('/subtask/:id',  async (req, res) => {
     const { id } = req.params;
   
     try {
@@ -59,6 +60,8 @@ const checkUser = async (req, res, next) => {
       res.status(400).json({ message: error.message });
     }
   });
+  
+  // find subtask detail
 
   router.get('/subtask/:id/sub_task',  async (req, res) => {
     const { id } = req.params;
@@ -72,16 +75,27 @@ const checkUser = async (req, res, next) => {
       res.status(400).json({ message: error.message });
     }
   });
+// find all subtasks of current userId
+router.get('/subtask/:userId/user_tasks', async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const tasks = await SubTaskSchema.find({ userId }).sort({ createdAt: -1 });
+    res.json(tasks);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
 
-  router.get('/subtask/:userId/user_tasks', async (req, res) => {
-    const { userId } = req.params;
-    try {
-      const tasks = await SubTaskSchema.find({ userId });
-      res.json(tasks);
-    } catch (error) {
-      res.status(400).json({ message: error.message });
-    }
-  })
+// find all subtasks of current TAsks
+router.get('/subtask/:parentTask/task/:userId/user_tasks', async (req, res) => {
+  const { parentTask,userId } = req.params;
+  try {
+    const tasks = await SubTaskSchema.find({ parentTask,userId }).sort({ createdAt: -1 });
+    res.json(tasks);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
 
   // find all assigned task of current userId
   router.get('/subtask/assigned/:userId', async (req, res) => {
