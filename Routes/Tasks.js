@@ -1,5 +1,6 @@
 const express = require("express");
 const Task = require("../modules/TaskSchema");
+const GroupSchema = require('../modules/TGroupSchema');
 const Comments = require("../modules/Comments");
 const app = express.Router();
 let io;
@@ -190,7 +191,7 @@ app.put("/categoryedit/:taskId", async (req, res) => {
     let status;
     let category;
     if (categoryAction === "Approved") {
-      status = "Completed";
+      status = "Archive";
       category = "Approved";
     } else if (categoryAction === "Unapproved") {
       status = "In Progress";
@@ -400,6 +401,39 @@ app.put("/tasks/:taskId/complete", async (req, res) => {
       res.status(500).json({ message: "Internal Server Error" });
   }
 });
+
+// get all the task for approval if user is deptHead or projectLead
+app.get('/tasks/deptHead_projectLead/:userId/all_approval_task',async (req,res)=>{
+  const {userId} = req.params;
+  try {
+    // all the group where userId is deptHead
+    const taskGroupsDeptHead = await GroupSchema.find({"deptHead.userId":userId}).select('_id')
+
+    // all the group where userId is projectLead
+    const taskGroupsProjectLead = await GroupSchema.find({"projectLead.userId":userId}).select('_id')
+    
+    const groupIdArray = [...taskGroupsDeptHead, ...taskGroupsProjectLead].map(group => group._id);
+    // const uniqueGroupIdArray = [...new Set(groupIdArray)];
+    const tasks = await  Task.find({"taskGroup.groupId":{$in:groupIdArray}})
+
+    // console.log(taskGroups)
+    return res.json(tasks)
+  } catch (error) {
+    return res.status(500).json({message:error.message})
+  }
+})
+
+// get all the task for approval if user is admin
+app.get('/tasks/get_all_task_for_approve/:userId/all_approval_task',async (req,res)=>{
+  const {userId} = req.params;
+  try {
+    const tasks = await  Task.find()
+
+    return res.json(tasks)
+  } catch (error) {
+    return res.status(500).json({message:error.message})
+  }
+})
 
 module.exports = { app, initializeSocketIo };
 
