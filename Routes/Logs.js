@@ -6,9 +6,12 @@ const LogSchema = require('../modules/LogSchema'); // Replace with your actual U
 
 router.get('/logs', async (req, res) => {
     try {
-        const logs = await LogSchema.find();
-        res.json(logs);
-        return 
+        const logs = await LogSchema.find()
+                                        .populate('userId', 'name userRole')
+                                        .populate('taskId', 'taskName')
+
+        return res.json(logs);
+         
     } catch (error) {
         return res.status(500).json({ error: error.message});
     }
@@ -18,7 +21,19 @@ router.post('/logs', async(req,res)=>{
     const body = req.body;
     try {
         const log = await LogSchema.create(body);
-        res.json(log);
+        return res.json(log);
+    } catch (error) {
+        return res.status(500).json({ error: error.message});
+    }
+})
+
+router.get('/logs/:taskId', async (req, res) => {
+    const {taskId} = req.params;
+
+    try {
+        const logs  = await LogSchema.find({taskId}).populate('userId', 'name userRole')
+                                                    .populate('taskId', 'taskName')
+        return res.json(logs);
     } catch (error) {
         return res.status(500).json({ error: error.message});
     }
