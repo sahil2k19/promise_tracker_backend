@@ -1,18 +1,14 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
-// const multer = require("multer");
+const multer = require('multer');
 const UserSchema = require("../modules/UserSchema");
 const upload = require("../services/s3");
-
 const Router = express.Router();
 let io;
 
 const initializeSocketIo = (socketIoInstance) => {
   io = socketIoInstance;
 };
-
-// const storage = multer.memoryStorage();
-// const upload = multer({ storage: storage });
 
 
 
@@ -43,6 +39,69 @@ Router.post("/registration", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
+Router.post('/bulk-upload', async (req, res) => {
+  try {
+      const users = req.body; // Data received from frontend
+
+      if (!Array.isArray(users) || users.length === 0) {
+          return res.status(400).json({ message: 'No data provided' });
+      }
+
+      // Process each user
+      for (const user of users) {
+          if (!user.email || !user.password) {
+              return res.status(400).json({ message: 'Invalid data for user' });
+          }
+
+          // Check if user already exists
+          const existingUser = await UserSchema.findOne({ email: user.email });
+          if (existingUser) {
+              return res.status(400).json({ message: `User with email ${user.email} already exists` });
+          }
+
+          // Hash the password
+          if (typeof user.password === 'number') {
+              user.password = user.password.toString(); // Convert to string if necessary
+          }
+          const salt = await bcrypt.genSalt(10);
+          user.password = await bcrypt.hash(user.password, salt);
+      }
+
+      // Save users to the database
+      await UserSchema.insertMany(users);
+
+      res.status(201).json({ message: 'Users uploaded successfully!' });
+  } catch (error) {
+      console.error('Error during bulk upload:', error);
+      res.status(500).json({ message: 'Failed to upload users' });
+  }
+});
+
+Router.delete('/users/:id', async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+      // Check if ID is valid
+      if (!id) {
+          return res.status(400).json({ message: 'User ID is required' });
+      }
+
+      // Find and delete the user by ID
+      const user = await UserSchema.findByIdAndDelete(id);
+
+      // Check if user was found and deleted
+      if (!user) {
+          return res.status(404).json({ message: 'User not found' });
+      }
+
+      res.status(200).json({ message: 'User deleted successfully' });
+  } catch (error) {
+      console.error('Error deleting user:', error);
+      res.status(500).json({ message: 'Failed to delete user' });
+  }
+});
+
 
 Router.put("/users/:userId", async (req, res) => {
   const userId = req.params.userId;
@@ -83,7 +142,7 @@ Router.put("/users/:userId/deactivate", async (req, res) => {
 Router.put("/users/:userId/activate", async (req, res) => {
   const { userId } = req.params;
   try {
-    const user = await UserSchema.findByIdAndUpdate(userId, { active: true, userRole:5 }, { new: true });
+    const user = await UserSchema.findByIdAndUpdate(userId, { active: true, userRole: 5 }, { new: true });
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -180,34 +239,34 @@ Router.delete("/users/:id", async (req, res) => {
 // upload image in s3 bucket
 Router.put('/change-proifle-pic/:userId', upload.single('image'), async (req, res) => {
   try {
-    const {userId} = req.params
+    const { userId } = req.params
     const user = await UserSchema.findById(userId);
-    if(!user){
+    if (!user) {
       return res.status(404).send({ message: "User not found" });
     }
     user.profilePic = req.file.location;
     await user.save();
-    res.send({result:req.file.location, message: "Profile pic updated successfully" });
+    res.send({ result: req.file.location, message: "Profile pic updated successfully" });
   } catch (error) {
     res.status(500).send({ message: "Server error", error: error.message });
   }
 })
 
-Router.post('/upload-image',upload.single('image'),async(req,res)=>{
+Router.post('/upload-image', upload.single('image'), async (req, res) => {
 
-  try{
+  try {
     const imageUrl = req.file.location
-    res.json({result:imageUrl, message:"image uploaded successfully"})
-  }catch(err){
+    res.json({ result: imageUrl, message: "image uploaded successfully" })
+  } catch (err) {
     res.json(err)
   }
 })
-Router.post('/upload-file',upload.single('file'),async(req,res)=>{
+Router.post('/upload-file', upload.single('file'), async (req, res) => {
 
-  try{
+  try {
     const fileUrl = req.file.location
-    res.json({result:fileUrl, message:"file uploaded successfully"})
-  }catch(err){
+    res.json({ result: fileUrl, message: "file uploaded successfully" })
+  } catch (err) {
     res.json(err)
   }
 })
@@ -220,7 +279,7 @@ Router.post('/upload-multiple-images', upload.array('images'), async (req, res) 
     res.status(500).json({ error: err.message });
   }
 });
-  // for voices
+// for voices
 Router.post('/upload-voice', upload.single('voice'), async (req, res) => {
   try {
     const voiceUrl = req.file.location;
