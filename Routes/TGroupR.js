@@ -173,7 +173,7 @@ app.get('/groups/:id', async (req, res) => {
 app.put("/group/:TGroupId", async (req, res) => {
   const TGroupId = req.params.TGroupId;
   const { groupName, members, profilePic, deptHead, projectLead } = req.body;
-  
+
   console.log("Request body:", req.body);  // Log the incoming data
 
   try {
@@ -182,30 +182,40 @@ app.put("/group/:TGroupId", async (req, res) => {
           return res.status(404).json({ message: "Task Group not found" });
       }
 
+      // Function to update lists if the new list is provided
       const updateList = (existingList, newList) => {
-          // Ensure each item in newList has the necessary fields
-          const validNewList = newList.filter(item => item && item.userId && item.name);
+          if (!newList) return existingList;  // Return the existing list if no new list is provided
+
+          const validNewList = newList.filter(item => item && item.userId && item.name);  // Validate the new list
           const newIds = new Set(validNewList.map(item => item.userId));
-          const filteredList = existingList.filter(item => item && !newIds.has(item.userId));
-          return filteredList.concat(validNewList);
+          const filteredList = existingList?.filter(item => item && !newIds.has(item.userId));
+          return filteredList?.concat(validNewList);
       };
 
-      const updatedDeptHeads = updateList(existingTGroup.deptHead, deptHead);
-      const updatedProjectLeads = updateList(existingTGroup.projectLead, projectLead);
-      const updatedMembers = updateList(existingTGroup.members, members);
+      const updatedDeptHeads = updateList(existingTGroup?.deptHead, deptHead);
+      const updatedProjectLeads = updateList(existingTGroup?.projectLead, projectLead);
+      const updatedMembers = updateList(existingTGroup?.members, members);
 
-      const allUnique = Array.from(new Map(
-          [...updatedDeptHeads, ...updatedProjectLeads, ...updatedMembers].map(item => [item.userId, item])
-      ).values());
+      // Combine and filter to ensure uniqueness if lists are provided
+      const allUnique = new Map();
+      if (updatedDeptHeads) {
+          updatedDeptHeads.forEach(item => allUnique.set(item.userId, item));
+      }
+      if (updatedProjectLeads) {
+          updatedProjectLeads.forEach(item => allUnique.set(item.userId, item));
+      }
+      if (updatedMembers) {
+          updatedMembers.forEach(item => allUnique.set(item.userId, item));
+      }
 
       const updatedTGroup = await TGroupSchema.findByIdAndUpdate(
           TGroupId,
           {
-              groupName,
-              members: allUnique.filter(member => members.some(mem => mem.userId === member.userId)),
-              profilePic,
-              projectLead: allUnique.filter(member => projectLead.some(lead => lead.userId === member.userId)),
-              deptHead: allUnique.filter(member => deptHead.some(head => head.userId === member.userId))
+              ...(groupName && { groupName }),
+              members: members ? Array.from(allUnique.values()).filter(member => members.some(mem => mem.userId === member.userId)) : existingTGroup.members,
+              ...(profilePic && { profilePic }),
+              projectLead: projectLead ? Array.from(allUnique.values()).filter(member => projectLead.some(lead => lead.userId === member.userId)) : existingTGroup.projectLead,
+              deptHead: deptHead ? Array.from(allUnique.values()).filter(member => deptHead.some(head => head.userId === member.userId)) : existingTGroup.deptHead,
           },
           { new: true }
       );
@@ -213,9 +223,10 @@ app.put("/group/:TGroupId", async (req, res) => {
       res.json(updatedTGroup);
   } catch (error) {
       console.error("Error updating Task Group:", error);
-      res.status(500).json({ error: "Internal Server Error" });
-     }
+      res.status(500).json({ error: "Internal Server Error", message: error.message });
+  }
 });
+
 
 app.put("/TGroup/:TGroupId", async (req, res) => {
   const TGroupId = req.params.TGroupId;
