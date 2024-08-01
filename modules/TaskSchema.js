@@ -1,9 +1,7 @@
-
 const mongoose = require('mongoose');
 
 const taskSchema = new mongoose.Schema({
   owner: { id: String, name: String, profilePic: String },
-  // taskGroup:{ id: String, name: String },
   taskGroup: {
     groupName: { type: String },
     groupId: { type: String }
@@ -20,16 +18,22 @@ const taskSchema = new mongoose.Schema({
   category: { type: String },
   comment: { type: String },
   remark: {
-    text: { type: String, },
-    date: { type: String, }
+    text: { type: String },
+    date: { type: String }
   },
   pow: {
     text: { type: String },
-    file: { type: String } 
+    file: { type: String }
   },
 
-  createdAt: { type: Date }
+  // Flexible field for additional details with nested objects and arrays
+  additionalDetails: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
+  },
+
+  createdAt: { type: Date, default: Date.now }
 });
+
 const Task = mongoose.model('Task', taskSchema);
 module.exports = Task;
-

@@ -220,9 +220,9 @@ app.put("/categoryedit/:taskId", async (req, res) => {
 app.put("/tasks/:taskId/cancel", async (req, res) => {
   try {
     const { taskId } = req.params;
-    const { text, date } = req.body.remark || {}; // Extract text and date from request body
+    const { remark} = req.body || {}; // Extract text and date from request body
 
-    if (!text || !date) {
+    if (!remark?.text || !remark?.date) {
       return res.status(400).json({ message: "Remark text and date are required" });
     }
 
@@ -232,11 +232,11 @@ app.put("/tasks/:taskId/cancel", async (req, res) => {
     const existingTask = await Task.findById(taskId);
     if (Array.isArray(existingTask.remark)) {
       updateData = {
-        $push: { remark: { text, date } }, // Push new remark object into the remark array
+        $push: { remark: remark }, // Push new remark object into the remark array
       };
     } else {
       updateData = {
-        remark: [{ text, date }], // Convert the existing string to an array with the new remark object
+        remark: [remark], // Convert the existing string to an array with the new remark object
       };
     }
 
@@ -245,7 +245,7 @@ app.put("/tasks/:taskId/cancel", async (req, res) => {
       taskId,
       {
         ...updateData,
-        $set: { status: "Cancelled" } // Set the status to Cancelled
+        $set: { status: "Cancelled", additionalDetails:{} } // Set the status to Cancelled
       },
       { new: true }
     );
@@ -435,5 +435,32 @@ app.get('/tasks/get_all_task_for_approve/:userId/all_approval_task',async (req,r
   }
 })
 
+
+
+app.put('/tasks/:taskId/reject_postponed', async (req, res) => {
+  const { taskId } = req.params;
+  const remark = req.body.remark;
+
+  try {
+    const updatedTask = await Task.findByIdAndUpdate(
+      taskId,
+      {
+        $set: {
+          "additionalDetails.remarks": remark,
+          "additionalDetails.status": "rejected"
+        }
+      },
+      { new: true }
+    );
+
+    if (!updatedTask) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    return res.json(updatedTask);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+});
 module.exports = { app, initializeSocketIo };
 
