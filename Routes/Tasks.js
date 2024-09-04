@@ -403,25 +403,37 @@ app.put("/tasks/:taskId/complete", async (req, res) => {
 });
 
 // get all the task for approval if user is deptHead or projectLead
-app.get('/tasks/deptHead_projectLead/:userId/all_approval_task',async (req,res)=>{
-  const {userId} = req.params;
+app.get('/tasks/deptHead_projectLead/:userId/all_approval_task', async (req, res) => {
+  const { userId } = req.params;
   try {
-    // all the group where userId is deptHead
-    const taskGroupsDeptHead = await GroupSchema.find({"deptHead.userId":userId}).select('_id')
+    // Find all the groups where userId is deptHead
+    const taskGroupsDeptHead = await GroupSchema.find({ "deptHead.userId": userId }).select('_id');
 
-    // all the group where userId is projectLead
-    const taskGroupsProjectLead = await GroupSchema.find({"projectLead.userId":userId}).select('_id')
-    
+    // Find all the groups where userId is projectLead
+    const taskGroupsProjectLead = await GroupSchema.find({ "projectLead.userId": userId }).select('_id');
+
+    // Find all the tasks where userId is the owner
+    const userOwnTask = await Task.find({ "owner.id": userId });
+
+    // Merge group IDs from both queries
     const groupIdArray = [...taskGroupsDeptHead, ...taskGroupsProjectLead].map(group => group._id);
-    // const uniqueGroupIdArray = [...new Set(groupIdArray)];
-    const tasks = await  Task.find({"taskGroup.groupId":{$in:groupIdArray}})
 
-    // console.log(taskGroups)
-    return res.json(tasks)
+    // Find tasks belonging to the groups
+    const tasks = await Task.find({ "taskGroup.groupId": { $in: groupIdArray } });
+
+    // Combine tasks from both queries
+    const result = [...tasks, ...userOwnTask];
+
+    // Remove duplicates by filtering unique task ids
+    const uniqueResult = Array.from(new Set(result.map(task => task._id.toString())))
+                              .map(id => result.find(task => task._id.toString() === id));
+
+    return res.json({ result: uniqueResult, tasksCount: tasks.length, userOwnTaskCount: userOwnTask.length });
   } catch (error) {
-    return res.status(500).json({message:error.message})
+    return res.status(500).json({ message: error.message });
   }
-})
+});
+
 
 // get all the task for approval if user is admin
 app.get('/tasks/get_all_task_for_approve/:userId/all_approval_task',async (req,res)=>{
@@ -463,4 +475,40 @@ app.put('/tasks/:taskId/reject_postponed', async (req, res) => {
   }
 });
 module.exports = { app, initializeSocketIo };
+
+app.get('/tasks/canEdit/:taskId/:userId/canEdit', async (req, res) => {
+  const { taskId , userId } = req.params;
+  try {
+    // Find the task by its ID
+    const task = await Task.findById(taskId);
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    // Check if the user is the owner of the task
+    if (task.owner.id === userId) {
+      return res.json(true);
+    }
+
+    // Find the task group by its groupId
+    const taskGroup = await GroupSchema.findOne({ groupId: task.taskGroup.groupId });
+    if (!taskGroup) {
+      return res.status(404).json({ message: "Task group not found" });
+    }
+
+    // Check if the user is a deptHead or projectLead in the task group
+    const isDeptHead = taskGroup.deptHead.some(member => member.userId === userId);
+    const isProjectLead = taskGroup.projectLead.some(lead => lead.userId === userId);
+
+    if (isDeptHead || isProjectLead) {
+      return res.json(true);
+    }
+
+    // If the user is neither the owner, nor a deptHead, nor a projectLead
+    return res.json(false);
+
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+});
 
