@@ -15,14 +15,14 @@ app.post('/TGroups', customBodyParserMiddleware, async (req, res) => {
     projectLead = Array.isArray(projectLead) && projectLead.length > 0 ? projectLead[0] : projectLead;
 
     const newTaskGroup = new TGroupSchema({
-      groupName,     
+      groupName,
       deptHead,
       projectLead,
       members,
       profilePic,
       createdAt: new Date(),
     });
-  
+
     const savedTaskGroup = await newTaskGroup.save();
     const allTaskGroups = await TGroupSchema.find();
     res.status(201).json({ savedTaskGroup, allTaskGroups });
@@ -59,7 +59,7 @@ app.get("/allgroups/:userId", async (req, res) => {
     } else if (userRole === 3) {
       // Fetch only the groups assigned to this member
       taskGroups = await TGroupSchema.find({ "members.userId": userId }).sort({ createdAt: -1 });
-      
+
       // If no groups are found, return an empty array
       if (taskGroups.length === 0) {
         return res.json([]);
@@ -67,7 +67,7 @@ app.get("/allgroups/:userId", async (req, res) => {
     } else {
       return res.status(403).json({ error: "Unauthorized access" });
     }
-    
+
 
     console.log('Task groups:', taskGroups);
 
@@ -177,53 +177,53 @@ app.put("/group/:TGroupId", async (req, res) => {
   console.log("Request body:", req.body);  // Log the incoming data
 
   try {
-      const existingTGroup = await TGroupSchema.findById(TGroupId);
-      if (!existingTGroup) {
-          return res.status(404).json({ message: "Task Group not found" });
-      }
+    const existingTGroup = await TGroupSchema.findById(TGroupId);
+    if (!existingTGroup) {
+      return res.status(404).json({ message: "Task Group not found" });
+    }
 
-      // Function to update lists if the new list is provided
-      const updateList = (existingList, newList) => {
-          if (!newList) return existingList;  // Return the existing list if no new list is provided
+    // Function to update lists if the new list is provided
+    const updateList = (existingList, newList) => {
+      if (!newList) return existingList;  // Return the existing list if no new list is provided
 
-          const validNewList = newList.filter(item => item && item.userId && item.name);  // Validate the new list
-          const newIds = new Set(validNewList.map(item => item.userId));
-          const filteredList = existingList?.filter(item => item && !newIds.has(item.userId));
-          return filteredList?.concat(validNewList);
-      };
+      const validNewList = newList.filter(item => item && item.userId && item.name);  // Validate the new list
+      const newIds = new Set(validNewList.map(item => item.userId));
+      const filteredList = existingList?.filter(item => item && !newIds.has(item.userId));
+      return filteredList?.concat(validNewList);
+    };
 
-      const updatedDeptHeads = updateList(existingTGroup?.deptHead, deptHead);
-      const updatedProjectLeads = updateList(existingTGroup?.projectLead, projectLead);
-      const updatedMembers = updateList(existingTGroup?.members, members);
+    const updatedDeptHeads = updateList(existingTGroup?.deptHead, deptHead);
+    const updatedProjectLeads = updateList(existingTGroup?.projectLead, projectLead);
+    const updatedMembers = updateList(existingTGroup?.members, members);
 
-      // Combine and filter to ensure uniqueness if lists are provided
-      const allUnique = new Map();
-      if (updatedDeptHeads) {
-          updatedDeptHeads.forEach(item => allUnique.set(item.userId, item));
-      }
-      if (updatedProjectLeads) {
-          updatedProjectLeads.forEach(item => allUnique.set(item.userId, item));
-      }
-      if (updatedMembers) {
-          updatedMembers.forEach(item => allUnique.set(item.userId, item));
-      }
+    // Combine and filter to ensure uniqueness if lists are provided
+    const allUnique = new Map();
+    if (updatedDeptHeads) {
+      updatedDeptHeads.forEach(item => allUnique.set(item.userId, item));
+    }
+    if (updatedProjectLeads) {
+      updatedProjectLeads.forEach(item => allUnique.set(item.userId, item));
+    }
+    if (updatedMembers) {
+      updatedMembers.forEach(item => allUnique.set(item.userId, item));
+    }
 
-      const updatedTGroup = await TGroupSchema.findByIdAndUpdate(
-          TGroupId,
-          {
-              ...(groupName && { groupName }),
-              members: members ? Array.from(allUnique.values()).filter(member => members.some(mem => mem.userId === member.userId)) : existingTGroup.members,
-              ...(profilePic && { profilePic }),
-              projectLead: projectLead ? Array.from(allUnique.values()).filter(member => projectLead.some(lead => lead.userId === member.userId)) : existingTGroup.projectLead,
-              deptHead: deptHead ? Array.from(allUnique.values()).filter(member => deptHead.some(head => head.userId === member.userId)) : existingTGroup.deptHead,
-          },
-          { new: true }
-      );
+    const updatedTGroup = await TGroupSchema.findByIdAndUpdate(
+      TGroupId,
+      {
+        ...(groupName && { groupName }),
+        members: members ? Array.from(allUnique.values()).filter(member => members.some(mem => mem.userId === member.userId)) : existingTGroup.members,
+        ...(profilePic && { profilePic }),
+        projectLead: projectLead ? Array.from(allUnique.values()).filter(member => projectLead.some(lead => lead.userId === member.userId)) : existingTGroup.projectLead,
+        deptHead: deptHead ? Array.from(allUnique.values()).filter(member => deptHead.some(head => head.userId === member.userId)) : existingTGroup.deptHead,
+      },
+      { new: true }
+    );
 
-      res.json(updatedTGroup);
+    res.json(updatedTGroup);
   } catch (error) {
-      console.error("Error updating Task Group:", error);
-      res.status(500).json({ error: "Internal Server Error", message: error.message });
+    console.error("Error updating Task Group:", error);
+    res.status(500).json({ error: "Internal Server Error", message: error.message });
   }
 });
 
@@ -252,7 +252,7 @@ app.put("/TGroup/:TGroupId", async (req, res) => {
       { groupName, members: updatedMembers, profilePic, projectLead: updateprojectLeads, deptHead: updatedeptHeads },
       { new: true }
     );
-    
+
     res.json(updatedTGroup);
   } catch (error) {
     console.error("Error:", error);
@@ -267,7 +267,7 @@ app.get("/members/:TGroupId", async (req, res) => {
     // Use populate to get members based on TGroupId
     const tgroup = await TGroupSchema.findOne({ _id: TGroupId }).populate({
       path: "members deptHead projectLead"
-  });
+    });
     if (!tgroup) {
       return res
         .status(404)
@@ -278,7 +278,7 @@ app.get("/members/:TGroupId", async (req, res) => {
     const deptHead = tgroup.deptHead;
     const projectLead = tgroup.projectLead;
 
-    res.json({members, deptHead, projectLead});
+    res.json({ members, deptHead, projectLead });
     // console.log(members,"members");
   } catch (error) {
     console.error("Error:", error);
@@ -309,13 +309,13 @@ app.delete("/deletegroup/:TGroupId", async (req, res) => {
     }
   } catch (error) {
     console.error("Error deleting Task Group:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-}
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 });
 
 app.get("/tasksByGroup", async (req, res) => {
   try {
-    // Aggregate tasks by group name
+    // Aggregate tasks by group name, and include task details in each status group
     const tasksByGroup = await Task.aggregate([
       {
         $group: {
@@ -323,7 +323,50 @@ app.get("/tasksByGroup", async (req, res) => {
           totalTasks: { $sum: 1 },
           inProgressTasks: { $sum: { $cond: [{ $eq: ["$status", "In Progress"] }, 1, 0] } },
           completedTasks: { $sum: { $cond: [{ $eq: ["$status", "Completed"] }, 1, 0] } },
-          cancelledTasks: { $sum: { $cond: [{ $eq: ["$status", "Cancelled"] }, 1, 0] } }
+          cancelledTasks: { $sum: { $cond: [{ $eq: ["$status", "Cancelled"] }, 1, 0] } },
+          archivedTasks: { $sum: { $cond: [{ $eq: ["$status", "Archive"] }, 1, 0] } }, // Add Archive status
+          inProgressTaskDetails: { $push: { $cond: [{ $eq: ["$status", "In Progress"] }, "$$ROOT", null] } },
+          completedTaskDetails: { $push: { $cond: [{ $eq: ["$status", "Completed"] }, "$$ROOT", null] } },
+          cancelledTaskDetails: { $push: { $cond: [{ $eq: ["$status", "Cancelled"] }, "$$ROOT", null] } },
+          archivedTaskDetails: { $push: { $cond: [{ $eq: ["$status", "Archive"] }, "$$ROOT", null] } } // Add Archive details
+        }
+      },
+      {
+        // Remove null entries from the task details arrays
+        $project: {
+          totalTasks: 1,
+          inProgressTasks: 1,
+          completedTasks: 1,
+          cancelledTasks: 1,
+          archivedTasks: 1, // Project Archive status
+          inProgressTaskDetails: {
+            $filter: {
+              input: "$inProgressTaskDetails",
+              as: "task",
+              cond: { $ne: ["$$task", null] }
+            }
+          },
+          completedTaskDetails: {
+            $filter: {
+              input: "$completedTaskDetails",
+              as: "task",
+              cond: { $ne: ["$$task", null] }
+            }
+          },
+          cancelledTaskDetails: {
+            $filter: {
+              input: "$cancelledTaskDetails",
+              as: "task",
+              cond: { $ne: ["$$task", null] }
+            }
+          },
+          archivedTaskDetails: {
+            $filter: {
+              input: "$archivedTaskDetails",
+              as: "task",
+              cond: { $ne: ["$$task", null] }
+            }
+          }
         }
       }
     ]);
@@ -335,10 +378,13 @@ app.get("/tasksByGroup", async (req, res) => {
   }
 });
 
+
+
+
 app.get("/allassignuser", async (req, res) => {
   try {
-    // Find users with userRole equal to 3
-    const specifiedUsers = await User.find({ userRole: 3 });
+    // Find users with userRole equal to 0, 1, 2, or 3
+    const specifiedUsers = await User.find({ userRole: { $in: [0, 1, 2, 3] } });
 
     // Array to store user data along with assigned task and group names
     let userData = [];
@@ -385,8 +431,6 @@ app.get("/allassignuser", async (req, res) => {
         }
       }
 
-      
-
       // Calculate task counts for the user
       let totalTasks = 0;
       let inProgressTasks = 0;
@@ -425,9 +469,10 @@ app.get("/allassignuser", async (req, res) => {
     res.json(userData);
   } catch (error) {
     console.error("Error fetching tasks assigned to the users:", error);
-    res.status(500).json({ message: "Internal Server Error" });
-  }
+    res.status(500).json({ message: "Internal Server Error" });
+  }
 });
+
 app.get("/allusertask", async (req, res) => {
   try {
     // Find all users
@@ -498,7 +543,6 @@ app.get("/allusertask", async (req, res) => {
 });
 
 
-
 app.delete("/delete/:TGroupId", LevelsRoutes, async (req, res) => {
   // console.log("del");
   const TGroupId = req.params.TGroupId;
@@ -561,8 +605,8 @@ app.post("/unpin/:groupId/:userId", async (req, res) => {
 
     res.status(200).send({ message: "Group unpinned successfully.", group });
   } catch (error) {
-    res.status(500).send({ message: "Error unpinning group.", error });
-  }
+    res.status(500).send({ message: "Error unpinning group.", error });
+  }
 });
 
 module.exports = app;

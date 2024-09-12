@@ -167,6 +167,28 @@ app.post("/tasksadd", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
 }
 });
+// DELETE Task API
+app.delete("/tasks/:taskId", async (req, res) => {
+  try {
+    const { taskId } = req.params;
+
+    // Find and delete the task by its ID
+    const deletedTask = await Task.findByIdAndDelete(taskId);
+
+    if (!deletedTask) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    // Emit a task deletion event to notify the connected clients
+    io.emit("taskDeleted", taskId);
+
+    res.status(200).json({ message: "Task deleted successfully", taskId });
+  } catch (error) {
+    console.error("Error deleting task:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 // 
 app.post("/notifications/reply", async (req, res) => {
   try {
