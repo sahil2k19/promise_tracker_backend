@@ -15,6 +15,7 @@ const ForgetPassword = require('./Routes/Forgotpassword');
 const ResetPassword = require('./Routes/Resetpassword');
 const SubTask = require('./Routes/SubTask');
 const Logs = require('./Routes/Logs');
+const Comments = require('./Routes/Comments');
 const PORT = process.env.PORT || 5000;
 
 const app = express();
@@ -55,6 +56,7 @@ app.use('/api', ForgetPassword);
 app.use('/api', ResetPassword);
 app.use('/api', SubTask);
 app.use('/api', Logs);
+app.use('/api/comments', Comments);
 
 // Socket.io connection
 io.on('connection', (socket) => {
