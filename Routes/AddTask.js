@@ -8,11 +8,12 @@ const { Expo } = require("expo-server-sdk");
 const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
+const nodemailer = require("nodemailer");
 let io;
 
 const initializeSocketIo = (socketIoInstance) => {
   io = socketIoInstance;
-}; 
+};
 const expo = new Expo();
 app.use(cors());
 const upload = multer({
@@ -27,6 +28,20 @@ const upload = multer({
     },
   }),
 });
+
+const transporter = nodemailer.createTransport({
+  host: 'smtp.gmail.com',
+  port: 587,  // Use 465 if secure is set to true
+  secure: false,  // Set to true for port 465, false for port 587
+  auth: {
+    user: 'webadmin@skanray-access.com',
+    pass: 'rdzegwmzirvbjcpm',  // Make sure this is your App Password, not your actual Gmail password
+  },
+  tls: {
+    rejectUnauthorized: false,  // Allows self-signed certificates; optional but often needed with Gmail
+  },
+});
+
 
 app.post("/tasks", upload.single("pdfFile"), async (req, res) => {
   try {
@@ -67,7 +82,7 @@ app.post("/tasks", upload.single("pdfFile"), async (req, res) => {
     });
 
     let taskNew = await newTask.save();
-   
+
     const taskId = taskNew._id;
 
     for (const assignedUser of people) {
@@ -80,7 +95,7 @@ app.post("/tasks", upload.single("pdfFile"), async (req, res) => {
         status: "pending",
         userId: userId,
         owner: {
-          id: ownerId, 
+          id: ownerId,
           name: ownerName,
           profilePic: ownerprofilePic,
         },
@@ -138,15 +153,21 @@ app.post("/tasksadd", async (req, res) => {
     // Saving the new task
     const savedTask = await newTask.save();
     io.emit("newTask", savedTask);
-    // Saving notifications for assigned users
+
+    // Saving notifications and sending emails for assigned users
     const taskId = savedTask._id;
     for (const assignedUser of assignedUsers) {
-      const userId = assignedUser.id; // Extract userId from assignedUser object
+      const userId = assignedUser.id;
 
+      // Find user data to get the email
+      const userData = await UserSchema.findById(userId);
+      if (!userData) continue;
+
+      const email = userData.email;
       const newNotification = new Notification({
         title: `${ownerName} assigning task to you`,
         description: `New task: ${taskName}`,
-        userId: userId, // Use extracted userId
+        userId,
         owner: {
           id: ownerId,
           name: ownerName,
@@ -155,17 +176,72 @@ app.post("/tasksadd", async (req, res) => {
         created: new Date(),
         action: true,
       });
-      
+
       await newNotification.save();
     }
-    
+
+    for (const user of people) {
+      const userId = user.userId;
+
+      // Fetch user data to get their email address
+      const userData = await UserSchema.findById(userId);
+      if (!userData) continue;
+
+      const email = userData.email;
+      const assignedUserName = userData.name;
+
+      // Email details
+      const mailOptions = {
+        from: "webadmin@skanray-access.com",
+        to: email,
+        subject: `New Task Assigned: ${taskName}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #dcdcdc; border-radius: 8px; overflow: hidden;">
+            
+            <header style="background-color: #1877F2; padding: 15px; text-align: center; color: white;">
+              <h2 style="margin: 0; font-size: 24px;">Task Assignment Notification</h2>
+            </header>
+            
+            <main style="padding: 20px; margin: 10px; background-color: #f4f6f8; color: #333;">
+              <p style="font-size: 16px; margin-bottom: 15px; margin-left: 15px; color:#5b5b5b;">Hello <strong>${assignedUserName}</strong>,</p>
+              <p style="margin: 0 0 15px; margin-left: 15px; color:#5b5b5b;">You have been assigned a new task by <strong>${ownerName}</strong>. Please see the task details below:</p>
+              
+              <section style="background-color: white; margin: 10px; border: 1px solid #dcdcdc; border-radius: 6px; padding: 15px; margin-bottom: 20px;">
+                <h3 style="font-size: 18px; color: #1877F2; margin: 0 0 10px;">Task Details</h3>
+                <p style="margin: 5px 0;"><strong>Task Name:</strong> ${taskName}</p>
+                <p style="margin: 5px 0;"><strong>Description:</strong> ${description}</p>
+                <p style="margin: 5px 0;"><strong>Start Date:</strong> ${startDate}</p>
+                <p style="margin: 5px 0;"><strong>End Date:</strong> ${endDate}</p>
+              </section>
+              
+              <p style="margin: 0 0 15px; margin-left: 15px; color:#5b5b5b;">You can log in to your account to view further details and manage your task assignments.</p>
+            </main>
+            
+            <footer style="background-color: #f0f2f5; padding: 15px; text-align: center;">
+              <p style="font-size: 14px; color: #666; margin: 0;">Best Regards,</p>
+              <p style="font-size: 16px; color: #333; margin: 5px 0;">Your Task Management Team</p>
+              <p style="font-size: 12px; color: #666; margin: 0;">webadmin@skanray-access.com</p>
+            </footer>
+            
+          </div>
+        `,
+      };
+
+
+
+      // Send email
+      await transporter.sendMail(mailOptions);
+    }
+
+
+
     io.emit("update_notification");
     // Responding with the newly created task
     res.status(201).json({ newTask: savedTask });
   } catch (error) {
     console.error("Error creating task:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-}
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 });
 // DELETE Task API
 app.delete("/tasks/:taskId", async (req, res) => {
@@ -192,7 +268,7 @@ app.delete("/tasks/:taskId", async (req, res) => {
 // 
 app.post("/notifications/reply", async (req, res) => {
   try {
-    const { userId, taskId, status, comment,  startDate, endDate, action } = req.body;
+    const { userId, taskId, status, comment, startDate, endDate, action } = req.body;
     const user = await UserSchema.findById(userId);
     const task = await Task.findById(taskId);
     const taskName = task.taskName;
@@ -232,8 +308,8 @@ app.post("/notifications/reply", async (req, res) => {
       endDate: endDate,
       action: true,
     });
-    
-    
+
+
     await newNotification.save();
     io.emit("update_notification", newNotification);
     res
@@ -249,7 +325,7 @@ app.get("/notifications/:userId", async (req, res) => {
   try {
     const userId = req.params.userId;
 
-    const userNotifications = await Notification.find({ userId: userId }).sort({created: -1});
+    const userNotifications = await Notification.find({ userId: userId }).sort({ created: -1 });
     res.json(userNotifications);
   } catch (error) {
     console.error("Error retrieving user notifications:", error);
@@ -259,7 +335,7 @@ app.get("/notifications/:userId", async (req, res) => {
 
 app.get("/notifications", async (req, res, next) => {
   try {
-    const allNotifications = await Notification.find().sort({created: -1});
+    const allNotifications = await Notification.find().sort({ created: -1 });
     res.json(allNotifications);
   } catch (error) {
     console.error("Error retrieving notifications:", error);
@@ -310,7 +386,7 @@ app.put("/tasks/update/:taskId", async (req, res) => {
 });
 
 app.put("/notifications/:taskid", async (req, res) => {
-  const { id } = req.params; 
+  const { id } = req.params;
   const { title, description, status, owner, taskId } = req.body;
   try {
     const notification = await Notification.findByIdAndUpdate(
@@ -324,13 +400,13 @@ app.put("/notifications/:taskid", async (req, res) => {
           taskId,
         },
       },
-      { new: true } 
+      { new: true }
     );
 
     if (!notification) {
       return res.status(404).json({ message: "Notification not found" });
     }
-    
+
     res.json(notification);
   } catch (error) {
     console.error(error);
@@ -352,7 +428,7 @@ app.put("/action/update/:userId", async (req, res) => {
     io.emit("update_notification", updatedNotifications);
     res.json({ message: 'Notifications updated successfully' });
   } catch (error) {
- 
+
     console.error("Error updating notifications:", error);
     res.status(500).json({ error: 'Internal server error' });
   }
