@@ -9,6 +9,7 @@ const subTaskSchema = new mongoose.Schema({
   endDate: { type: Date },
   createdAt: { type: Date, default: Date.now },
   parentTask: { type: mongoose.Schema.Types.ObjectId, ref: 'Task' },
+  assignedTo:{type:mongoose.Schema.Types.Mixed}
 });
 
 const SubTask = mongoose.model('SubTask', subTaskSchema);
