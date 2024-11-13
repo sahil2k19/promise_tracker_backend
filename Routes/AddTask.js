@@ -7,8 +7,10 @@ const app = express.Router();
 const { Expo } = require("expo-server-sdk");
 const cors = require("cors");
 const path = require("path");
+const dotenv = require('dotenv');
 const fs = require("fs");
 const nodemailer = require("nodemailer");
+dotenv.config();
 let io;
 
 const initializeSocketIo = (socketIoInstance) => {
@@ -34,8 +36,8 @@ const transporter = nodemailer.createTransport({
   port: 587,  // Use 465 if secure is set to true
   secure: false,  // Set to true for port 465, false for port 587
   auth: {
-    user: 'webadmin@skanray-access.com',
-    pass: 'rdzegwmzirvbjcpm',  // Make sure this is your App Password, not your actual Gmail password
+    user: process.env.GMAIL_USER, 
+    pass: process.env.GMAIL_PASS,  // Make sure this is your App Password, not your actual Gmail password
   },
   tls: {
     rejectUnauthorized: false,  // Allows self-signed certificates; optional but often needed with Gmail
@@ -192,7 +194,7 @@ app.post("/tasksadd", async (req, res) => {
 
       // Email details
       const mailOptions = {
-        from: "webadmin@skanray-access.com",
+        from: process.env.GMAIL_USER,
         to: email,
         subject: `New Task Assigned: ${taskName}`,
         html: `
