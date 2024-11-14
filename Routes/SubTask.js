@@ -144,7 +144,6 @@ router.get('/subtask/:parentTask/task/:userId/user_tasks', async (req, res) => {
   });
 
   // fetch all the members of a group
-
   router.get("/subtask/:groupId/members", async (req, res) => {
     const { groupId } = req.params;
   
@@ -155,16 +154,21 @@ router.get('/subtask/:parentTask/task/:userId/user_tasks', async (req, res) => {
         return res.status(404).json({ message: "Task group not found" });
       }
   
-      // Get all members
-      const members = taskGroup.members;
+      // Extract all relevant fields and merge into a single list
+      const { groupName, deptHead = [], projectLead = [], members = [], pinnedBy = [] } = taskGroup;
+      const allMembers = [...deptHead, ...projectLead, ...members];
   
-      // Send the response with all members
-      res.json({  groupName: taskGroup.groupName, members });
+      // Send the response with group name and combined members list
+      res.json({
+        groupName,
+        members: allMembers
+      });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ message: "Server error" });
+      res.status(500).json({ message: "An error occurred while fetching members." });
     }
   });
+  
   
   
 
