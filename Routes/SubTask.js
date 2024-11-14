@@ -3,6 +3,7 @@ const router = express.Router();
 const SubTaskSchema = require('../modules/SubTaskSchema'); // Replace with your actual User model
 const UserSchema = require('../modules/UserSchema'); // Replace with your actual User model
 const TaskSchema = require('../modules/TaskSchema');
+const TGroupSchema = require('../modules/TGroupSchema');
 
 const checkUser = async (req, res, next) => {
     const { userId } = req.body;
@@ -139,6 +140,29 @@ router.get('/subtask/:parentTask/task/:userId/user_tasks', async (req, res) => {
     } catch (error) {
       console.error('Error fetching assigned subtasks with task data:', error);
       res.status(500).json({ message: 'Failed to fetch assigned subtasks with task data.' });
+    }
+  });
+
+  // fetch all the members of a group
+
+  router.get("/subtask/:groupId/members", async (req, res) => {
+    const { groupId } = req.params;
+  
+    try {
+      // Find the associated task group
+      const taskGroup = await TGroupSchema.findById(groupId);
+      if (!taskGroup) {
+        return res.status(404).json({ message: "Task group not found" });
+      }
+  
+      // Get all members
+      const members = taskGroup.members;
+  
+      // Send the response with all members
+      res.json({  groupName: taskGroup.groupName, members });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Server error" });
     }
   });
   
