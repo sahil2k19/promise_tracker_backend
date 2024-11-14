@@ -1,10 +1,26 @@
 const express = require("express");
 const Task = require("../modules/TaskSchema");
 const GroupSchema = require('../modules/TGroupSchema');
-// const Comments = require("../modules/Comments");
+const UserSchema = require("../modules/UserSchema");
+const nodemailer = require("nodemailer");
+const dotenv = require('dotenv');
+const cors = require("cors");
+const path = require("path");
 const app = express.Router();
+dotenv.config();
 let io;
-
+const transporter = nodemailer.createTransport({
+  host: 'smtp.gmail.com',
+  port: 587,  // Use 465 if secure is set to true
+  secure: false,  // Set to true for port 465, false for port 587
+  auth: {
+    user: process.env.GMAIL_USER, 
+    pass: process.env.GMAIL_PASS,  // Make sure this is your App Password, not your actual Gmail password
+  },
+  tls: {
+    rejectUnauthorized: false,  // Allows self-signed certificates; optional but often needed with Gmail
+  },
+});
 const initializeSocketIo = (socketIoInstance) => {
   io = socketIoInstance;
 };
@@ -41,8 +57,8 @@ app.put("/tasksedit/:taskId", async (req, res) => {
 
     // Ensure only valid fields are updated
     const validFields = [
-      'owner.id', 'owner.name', 'taskGroup', 'taskName', 'description', 'audioFile', 
-      'pdfFile', 'people', 'startDate', 'endDate', 'reminder', 'status', 
+      'owner.id', 'owner.name', 'taskGroup', 'taskName', 'description', 'audioFile',
+      'pdfFile', 'people', 'startDate', 'endDate', 'reminder', 'status',
       'category', 'comment', 'remark'
     ];
 
@@ -97,8 +113,8 @@ app.put("/tasks/:taskId/status", async (req, res) => {
     res.json(updatedTask);
   } catch (error) {
     console.error("Error updating task status:", error);
-    res.status(500).json({ message: error.message });
- }
+    res.status(500).json({ message: error.message });
+  }
 });
 
 app.put("/tasks/:taskId", async (req, res) => {
@@ -133,7 +149,7 @@ app.get("/countCompletedTasks/:userId", async (req, res) => {
     }
 
 
-    
+
     const completedCountQuery = {
       people: { $elemMatch: { userId: userId } },
       status: "Completed",
@@ -220,7 +236,7 @@ app.put("/categoryedit/:taskId", async (req, res) => {
 app.put("/tasks/:taskId/cancel", async (req, res) => {
   try {
     const { taskId } = req.params;
-    const { remark} = req.body || {}; // Extract text and date from request body
+    const { remark } = req.body || {}; // Extract text and date from request body
 
     if (!remark?.text || !remark?.date) {
       return res.status(400).json({ message: "Remark text and date are required" });
@@ -245,7 +261,7 @@ app.put("/tasks/:taskId/cancel", async (req, res) => {
       taskId,
       {
         ...updateData,
-        $set: { status: "Cancelled", additionalDetails:{} } // Set the status to Cancelled
+        $set: { status: "Cancelled", additionalDetails: {} } // Set the status to Cancelled
       },
       { new: true }
     );
@@ -270,7 +286,7 @@ app.put("/tasks/taskapprovals/:taskId", async (req, res) => {
     const updatedTask = await Task.findByIdAndUpdate(
       taskId,
       {
-        $set: { 
+        $set: {
           status: "In Progress",
           endDate,
           remark: [] // Clear remarks
@@ -359,48 +375,93 @@ app.put("/archiveOldTasks", async (req, res) => {
     res.json({ message: "Old tasks archived successfully", updatedTasks });
   } catch (error) {
     console.error("Error archiving old tasks:", error);
-    res.status(500).json({ message: "Internal Server Error" });
-  }
+    res.status(500).json({ message: "Internal Server Error" });
+  }
 });
 
 app.put("/tasks/:taskId/complete", async (req, res) => {
   try {
-      const { taskId } = req.params;
-      const { text, file } = req.body; // Extract text and file (base64 encoded) from request body
+    const { taskId } = req.params;
+    const { text, file, userId } = req.body; // Extract text, file, and completer's userId from request body
 
-      // Check if text is provided (it's required)
-      if (!text) {
-          return res.status(400).json({ message: "Text for proof of work is required" });
-      }
+    // Check if text is provided (it's required)
+    if (!text) {
+      return res.status(400).json({ message: "Text for proof of work is required" });
+    }
 
-      // Create the pow object with provided text and/or file
-      let pow = { text };
-      if (file) {
-          pow.file = file; // Assuming file is already base64 encoded as a string
-      }
+    // Find the completer's details
+    const completer = await UserSchema.findById(userId);
+    if (!completer) {
+      return res.status(404).json({ message: "Completer not found" });
+    }
 
-      // Update the task document
-      const updatedTask = await Task.findByIdAndUpdate(
-          taskId,
-          {
-              $set: {
-                  status: "Completed",
-                  pow: pow
-              }
-          },
-          { new: true }
-      );
+    // Create the pow object with provided text and/or file
+    let pow = { text };
+    if (file) {
+      pow.file = file; // Assuming file is already base64 encoded as a string
+    }
 
-      if (!updatedTask) {
-          return res.status(404).json({ message: "Task not found" });
-      }
-      io.emit('taskCompleted', updatedTask);
-      res.json(updatedTask);
+    // Update the task status to "Completed"
+    const updatedTask = await Task.findByIdAndUpdate(
+      taskId,
+      {
+        $set: {
+          status: "Completed",
+          pow: pow
+        }
+      },
+      { new: true }
+    );
+
+    if (!updatedTask) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    // Fetch task owner's details for sending the email
+    const taskOwner = await UserSchema.findById(updatedTask.owner.id);
+    if (!taskOwner) {
+      return res.status(404).json({ message: "Task owner not found" });
+    }
+
+    // Email options to notify the task owner
+    const emailOptions = {
+      from: process.env.GMAIL_USER,
+      to: taskOwner.email,
+      subject: `Task "${updatedTask.taskName}" Completed by ${completer.name}`,
+      html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <header style="background-color: #1877F2; padding: 15px; text-align: center; color: white;">
+                      <h2 style="margin: 0;">Task Completion Notification</h2>
+                  </header>
+                  <main style="padding: 20px;">
+                      <p>Hello <strong>${taskOwner.name}</strong>,</p>
+                      <p>Your task "<strong>${updatedTask.taskName}</strong>" has been completed by <strong>${completer.name}</strong>.</p>
+                      <p><strong>Proof of Work:</strong> ${text}</p>
+                      ${file ? `<p><strong>Attached File:</strong> [Base64 file data]</p>` : ''}
+                  </main>
+                  <footer style="background-color: #f0f2f5; padding: 15px; text-align: center;">
+                      <p>Best Regards,</p>
+                      <p>Your Task Management Team</p>
+                  </footer>
+              </div>
+          `
+    };
+
+    // Send email to the task owner
+    await transporter.sendMail(emailOptions);
+
+    // Emit real-time event
+    io.emit('taskCompleted', updatedTask);
+
+    // Respond with the updated task details
+    res.json(updatedTask);
+
   } catch (error) {
-      console.error("Error updating task status to Completed:", error);
-      res.status(500).json({ message: "Internal Server Error" });
-  }
+    console.error("Error updating task status to Completed:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
 });
+
 
 // get all the task for approval if user is deptHead or projectLead
 app.get('/tasks/deptHead_projectLead/:userId/all_approval_task', async (req, res) => {
@@ -426,7 +487,7 @@ app.get('/tasks/deptHead_projectLead/:userId/all_approval_task', async (req, res
 
     // Remove duplicates by filtering unique task ids
     const uniqueResult = Array.from(new Set(result.map(task => task._id.toString())))
-                              .map(id => result.find(task => task._id.toString() === id));
+      .map(id => result.find(task => task._id.toString() === id));
 
     return res.json({ result: uniqueResult, tasksCount: tasks.length, userOwnTaskCount: userOwnTask.length });
   } catch (error) {
@@ -436,14 +497,14 @@ app.get('/tasks/deptHead_projectLead/:userId/all_approval_task', async (req, res
 
 
 // get all the task for approval if user is admin
-app.get('/tasks/get_all_task_for_approve/:userId/all_approval_task',async (req,res)=>{
-  const {userId} = req.params;
+app.get('/tasks/get_all_task_for_approve/:userId/all_approval_task', async (req, res) => {
+  const { userId } = req.params;
   try {
-    const tasks = await  Task.find()
+    const tasks = await Task.find()
 
     return res.json(tasks)
   } catch (error) {
-    return res.status(500).json({message:error.message})
+    return res.status(500).json({ message: error.message })
   }
 })
 
@@ -477,7 +538,7 @@ app.put('/tasks/:taskId/reject_postponed', async (req, res) => {
 module.exports = { app, initializeSocketIo };
 
 app.get('/tasks/canEdit/:taskId/:userId/canEdit', async (req, res) => {
-  const { taskId , userId } = req.params;
+  const { taskId, userId } = req.params;
   try {
     // Find the task by its ID
     const task = await Task.findById(taskId);
