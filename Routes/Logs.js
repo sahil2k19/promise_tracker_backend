@@ -9,13 +9,13 @@ router.get('/logs', async (req, res) => {
         const logs = await LogSchema.find()
                                         .populate('userId', 'name userRole')
                                         .populate('taskId', 'taskName')
-
+                                        .sort({ timestamp: -1 });  
         return res.json(logs);
          
     } catch (error) {
         return res.status(500).json({ error: error.message});
     }
-})
+}) 
 
 router.post('/logs', async(req,res)=>{
     const body = req.body;
@@ -28,15 +28,19 @@ router.post('/logs', async(req,res)=>{
 })
 
 router.get('/logs/:taskId', async (req, res) => {
-    const {taskId} = req.params;
+    const { taskId } = req.params;
 
     try {
-        const logs  = await LogSchema.find({taskId}).populate('userId', 'name userRole')
-                                                    .populate('taskId', 'taskName')
+        const logs = await LogSchema.find({ taskId })
+            .populate('userId', 'name userRole')
+            .populate('taskId', 'taskName')
+            .sort({ timestamp: -1 });  // Sort by createdAt in descending order
+
         return res.json(logs);
     } catch (error) {
-        return res.status(500).json({ error: error.message});
+        return res.status(500).json({ error: error.message });
     }
-})
+});
+
 
 module.exports = router;
