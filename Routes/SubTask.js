@@ -17,8 +17,32 @@ const checkUser = async (req, res, next) => {
         return res.json({ message: error.message });
    }    
   };
+// NEW SUBTASK ROUTES
+
+// get all subtasks by parentTaskId
+
+router.get('/subtask/:parentTaskId', async (req, res) => {
+    try {
+      const { parentTaskId } = req.params;
+  
+      // Find all tasks with the specified parentTaskId
+      const tasks = await TaskSchema.find({ 'subtaskDetail.parentTaskId': parentTaskId });
+  
+      if (tasks.length === 0) {
+        return res.status(404).json({ message: 'No tasks found for the provided parentTaskId.' });
+      }
+  
+      res.status(200).json(tasks);
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+      res.status(500).json({ message: 'Internal server error', error });
+    }
+  });
 
 
+
+
+// OLD SUBTASK ROUTES
   router.post('/subtask', checkUser, async (req, res) => {
     const { userId } = req.body;
     const taskData = { ...req.body };

@@ -31,6 +31,14 @@ const taskSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.Mixed,
     default: {}
   },
+    // Field to indicate if the task is a subtask
+    isSubtask: { type: Boolean, default: false },
+
+    // Subtask details
+    subtaskDetail: {
+      parentTaskId: { type: String } // Reference to the parent task
+    },
+  
 
   createdAt: { type: Date, default: Date.now }
 });

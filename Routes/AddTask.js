@@ -118,7 +118,7 @@ app.post("/tasks", upload.single("pdfFile"), async (req, res) => {
 // socket done here
 app.post("/tasksadd", async (req, res) => {
   try {
-    const { owner, taskGroup, taskName, description, audioFile, pdfFile, people, startDate, endDate, reminder, status, category, comment, remark } = req.body;
+    const { owner, taskGroup,isSubtask, subtaskDetail,taskName, description, audioFile, pdfFile, people, startDate, endDate, reminder, status, category, comment, remark } = req.body;
 
     // Extracting owner's ID
     const ownerId = owner.id;
@@ -138,6 +138,8 @@ app.post("/tasksadd", async (req, res) => {
         groupId: taskGroup.groupId
       },
       taskName,
+      isSubtask,
+      subtaskDetail,
       description,
       audioFile,
       pdfFile,
