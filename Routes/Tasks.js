@@ -26,13 +26,20 @@ const initializeSocketIo = (socketIoInstance) => {
 };
 app.get("/tasks", async (req, res) => {
   try {
-    const taskGroups = await Task.find().sort({ createdAt: -1 });
+    const taskGroups = await Task.find()
+      .sort({ createdAt: -1 })
+      .populate({
+        path: 'subtaskDetail.parentTaskId',  // Populate the parent task reference
+        select: 'taskName'  // Only select the taskName field from the parent task
+      });
+
     res.json(taskGroups);
   } catch (error) {
     console.error("Error fetching task groups:", error.message);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
 
 app.get("/tasks/:taskId", async (req, res) => {
   try {

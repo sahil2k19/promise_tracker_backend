@@ -36,7 +36,7 @@ const taskSchema = new mongoose.Schema({
 
     // Subtask details
     subtaskDetail: {
-      parentTaskId: { type: String } // Reference to the parent task
+      parentTaskId: { type: mongoose.Schema.Types.ObjectId, ref: 'Task'} // Reference to the parent task
     },
   
 
