@@ -14,7 +14,7 @@ const transporter = nodemailer.createTransport({
   port: 587,  // Use 465 if secure is set to true
   secure: false,  // Set to true for port 465, false for port 587
   auth: {
-    user: process.env.GMAIL_USER, 
+    user: process.env.GMAIL_USER,
     pass: process.env.GMAIL_PASS,  // Make sure this is your App Password, not your actual Gmail password
   },
   tls: {
@@ -37,6 +37,15 @@ app.get("/tasks", async (req, res) => {
   } catch (error) {
     console.error("Error fetching task groups:", error.message);
     res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+app.get('/subtasks', async (req, res) => {
+  try {
+    // Fetch tasks where isSubtask is true and status is "In Progress"
+    const subtasks = await Task.find({ isSubtask: true, status: "In Progress" });
+    res.status(200).json({ success: true, data: subtasks });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 

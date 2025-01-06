@@ -40,6 +40,16 @@ router.get('/subtask/:parentTaskId', async (req, res) => {
   });
 
 
+// Get all subtasks
+router.get('/subtask', async (req, res) => {
+  try {
+    const subtasks = await SubTaskSchema.find().sort({ createdAt: -1 }); // Retrieve all subtasks sorted by creation date
+    res.status(200).json(subtasks);
+  } catch (error) {
+    console.error('Error fetching all subtasks:', error);
+    res.status(500).json({ message: 'Failed to fetch subtasks', error });
+  }
+});
 
 
 // OLD SUBTASK ROUTES
@@ -195,6 +205,25 @@ router.get('/subtask/:parentTask/task/:userId/user_tasks', async (req, res) => {
   
   
   
+// Add this route to drop the SubTaskSchema collection
+router.delete('/subtask/dropCollection', async (req, res) => {
+  try {
+    // Use the model's `collection.drop` method to drop the collection
+    await SubTaskSchema.collection.drop();
+
+    res.status(200).json({ message: 'SubTask collection dropped successfully' });
+  } catch (error) {
+    console.error('Error dropping SubTask collection:', error);
+
+    // Handle specific errors, like if the collection does not exist
+    if (error.code === 26) {
+      return res.status(404).json({ message: 'SubTask collection does not exist.' });
+    }
+
+    res.status(500).json({ message: 'An error occurred while dropping the collection.', error });
+  }
+});
+
 
 
 

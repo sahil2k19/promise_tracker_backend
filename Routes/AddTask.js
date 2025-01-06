@@ -451,6 +451,26 @@ app.put("/action/update/:userId", async (req, res) => {
 //   }
 // });
 // 
+// GET Task by ID API
+app.get("/tasks/:taskId", async (req, res) => {
+  try {
+    const { taskId } = req.params;
+
+    // Find the task by its ID
+    const task = await Task.findById(taskId);
+
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    // Responding with the task details
+    res.status(200).json({ task });
+  } catch (error) {
+    console.error("Error retrieving task:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 app.put('/updatetasks/:id', async (req, res) => {
   const { id } = req.params;
   const { comment, status, } = req.body;
