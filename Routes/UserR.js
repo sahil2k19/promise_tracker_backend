@@ -1,6 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const multer = require('multer');
+const mongoose = require("mongoose");
 const UserSchema = require("../modules/UserSchema");
 const upload = require("../services/s3");
 const Router = express.Router();
@@ -170,6 +171,12 @@ Router.put("/users/:userId/activate", async (req, res) => {
 
 Router.get("/user/:userId", async (req, res) => {
   const userId = req.params.userId;
+
+  // Validate the userId format
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ message: "Invalid user ID format" });
+  }
+
   try {
     const user = await UserSchema.findById(userId);
     if (!user) {

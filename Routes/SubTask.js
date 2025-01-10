@@ -42,7 +42,7 @@ router.get('/subtask/:parentTaskId', async (req, res) => {
 
 // Get all subtasks
 router.get('/subtask', async (req, res) => {
-  try {
+  try { 
     const subtasks = await SubTaskSchema.find().sort({ createdAt: -1 }); // Retrieve all subtasks sorted by creation date
     res.status(200).json(subtasks);
   } catch (error) {
