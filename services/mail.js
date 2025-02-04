@@ -7,8 +7,8 @@ const nodemailer = require('nodemailer');
 let transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user:  process.env.EMAIL_FROM, // Your Gmail address
-        pass: process.env.EMAIL_APP_PASS // Your Gmail password or App Password
+        user:  process.env.GMAIL_USER, // Your Gmail address
+        pass: process.env.GMAIL_PASS // Your Gmail password or App Password
     }
 });
 
@@ -38,5 +38,45 @@ const sendMail = (to, subject, replacements,emailTemplate, cb) =>{
     });
 }
 
+const sendMultipleEmails = async (recipients) => {
+    const emailPromises = recipients.map(
+        (recipient) =>
+            new Promise((resolve, reject) => {
+                sendMail(
+                    recipient,
+                    subject,
+                    replacements,
+                    emailTemplate,
+                    (error, info) => {
+                        if (error) return reject(error);
+                        resolve(info);
+                    }
+                );
+            })
+    );
 
-module.exports = {sendMail}
+    try {
+        const results = await Promise.all(emailPromises);
+        console.log('All emails sent successfully:', results);
+    } catch (err) {
+        console.error('Failed to send some emails:', err);
+    }
+};
+
+
+const sendDynamicEmails = (to, subject,htmlContent, cb)=>{
+
+    let mailOptions = {
+        from: process.env.EMAIL_FROM,
+        to,
+        subject,
+        html: htmlContent,            // The HTML content
+      };
+    transporter.sendMail(mailOptions, (error, info) => {
+        cb(error, info);
+})
+
+}
+
+
+module.exports = {sendMail, sendMultipleEmails, sendDynamicEmails}
